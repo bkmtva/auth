@@ -1,12 +1,10 @@
 from flask_login import UserMixin
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
+from application import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from passlib.apps import custom_app_context as pwd_context
 
 
-
-db = SQLAlchemy()
 
 
 class User(db.Model):
