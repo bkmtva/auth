@@ -50,7 +50,7 @@ class Token(Resource):
     def post(self):
         data = request.get_json()
         if 'email' not in data or "password" not in data:
-            return jsonify({'message': 'Please provide credentials'}), 401
+            return {'message': 'Please provide credentials'}, 401
         
         email = data['email']
         password = data['password']
@@ -60,9 +60,9 @@ class Token(Resource):
         if user:
             expires = timedelta(days=7)
             access_token = create_access_token(identity=str(user.id), expires_delta=expires)
-            return jsonify({'access_token': access_token.decode('utf-8')}), 200
+            return {'access_token': access_token}, 200
         else:
-            return jsonify({'message': 'Invalid credentials'}), 401
+            return {'message': 'Invalid credentials'}, 401
 
 
 
