@@ -1,15 +1,17 @@
-from flask import Flask, jsonify, request, current_app, abort
+from flask import request
 from application import db
 from application.model import User
 from functools import wraps
 from flask_restful import Resource
 from flask_jwt_extended import create_access_token
 from datetime import datetime, timedelta
-
+from application.email import send_email
+from application.token import confirm_token
 
 
 class Create(Resource):
     def post(self):
+        
         data = request.get_json()
         if 'name' not in data:
             return {'message': 'Username field cant be empty'}, 400
@@ -18,27 +20,55 @@ class Create(Resource):
         if 'password' not in data:
             return {'message': 'Write password'}, 400
         
-
+        
         name = data['name']
         email = data['email']
         password = data['password']
 
-
+    
         if User.query.filter_by(name=name).first():
             return {'message': 'Username already taken'}, 400
         if User.query.filter_by(email=email).first():
             return {'message': 'Email already taken'}, 400
-
         
-        user = User(name=name, email=email)
+        subject = "Please confirm your email"
+
+        send_email(email, subject, email)
+
+        user = User(name=name, email=email, confirmed=False)
         user.hash_password(password)
         db.session.add(user)
         db.session.commit()
+
         
-        return {'message': 'User registered successfully'}, 201
+        return f'Email you entered {email}'
     
 
+class Verify(Resource):
+    def get(self, token):
+        try:
+            
+            email = confirm_token(token)
+            if not email:
+                User.query.filter(User.confirmed == False).delete()
+                db.session.commit()
+                return {'message': 'Your token is expired or wrong email, please try again'}, 200
+        except:
+            User.query.filter(User.confirmed == False).delete()
+            db.session.commit()
+            return {'message': 'Your token is expired or wrong email, please try again'}, 200
+        user = User.query.filter_by(email=email).first_or_404()
+        if user.confirmed:
+            return {'message': 'Account already confirmed. Please login.'}, 200
+        else:
+            user.confirmed = True
+            # user.confirmed_on = datetime.now()
+            db.session.add(user)
+            db.session.commit()
+            return 'You have confirmed your account!', 200
 
+    # def get(self, token='token'):
+    #     return 'Verification message sended to your email', 200
 def authenticate(email, password):
     
     user = User.query.filter_by(email=email).first()
@@ -65,6 +95,10 @@ class Token(Resource):
             return {'message': 'Invalid credentials'}, 401
 
 
+
+
+
+    
 
 # def token_required(f):
 #     @wraps(f)
